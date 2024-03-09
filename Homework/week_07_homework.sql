@@ -72,11 +72,11 @@ GROUP BY category.name;
 
 -- 9.) Write a query that shows how many total films were rented each month.
 -- Group them by category and month. So, you want to show January in general regardless of year, etc. 
-SELECT category.name AS category_name, MONTH(rental.rental_date) AS rental_month, 
+SELECT category.name AS category_name, EXTRACT(MONTH FROM rental.rental_date) AS rental_month,
 COUNT(rental.rental_id) AS total_rentals FROM category
 JOIN film_category ON category.category_id = film_category.category_id
 JOIN film ON film_category.film_id = film.film_id
 JOIN inventory ON film.film_id = inventory.film_id
 JOIN rental ON inventory.inventory_id = rental.inventory_id
-GROUP BY category.name, MONTH(rental.rental_date)
-ORDER BY category_name,rental_month;
+GROUP BY category.name, rental_month
+ORDER BY category_name, rental_month;
