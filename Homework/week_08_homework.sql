@@ -1,71 +1,91 @@
--- 1.) Show all customers whose last names start with T and order them by first name:
-SELECT * FROM customer
-WHERE last_name LIKE 'T%'
-ORDER BY first_name ASC;
+-- 1.) Create a new column called “status” in the rental table (yes, add a permanent column)
+-- that uses a case statement to indicate if a film was returned late, early, or on time:
+ALTER TABLE rental
+ADD COLUMN status varchar(7);
 
--- 2.) Show all rentals returned from 5/28/2005 to 6/1/2005:
-SELECT * FROM rental
-WHERE return_date >= '2005-05-28' AND return_date <= '2005-06-01';
+UPDATE rental
+SET status = CASE
+    WHEN rental_date > return_date THEN 'Late'
+    WHEN rental_date < return_date THEN 'Early'
+    ELSE 'On Time'
+END;
 
--- 3.) What query would you use to determine which movies are rented the most?
---     Show the top 10 movies rented the most:
-SELECT film.title AS film_title, COUNT(rental.rental_id) AS top_rented FROM rental
-JOIN inventory ON rental.inventory_id = inventory.inventory_id
-JOIN film ON inventory.film_id = film.film_id
-GROUP BY film.title
-ORDER BY top_rented DESC
-LIMIT 10;
+-- 2.) Show the total payment amounts for people who live in Kansas City or Saint Louis:
+SELECT c.customer_id, c.first_name, c.last_name, SUM(p.amount) AS total_payed
+FROM customer c
+JOIN address a ON c.address_id = a.address_id
+JOIN city ci ON a.city_id = ci.city_id
+JOIN payment p ON c.customer_id = p.customer_id
+WHERE ci.city IN ('Kansas City', 'Saint Louis')
+GROUP BY c.customer_id, c.first_name, c.last_name;
 
--- 4.) Show how much each customer spent on movies (for all time), then order from least to most:
-EXPLAIN ANALYZE SELECT customer_id, SUM(amount) AS total
-FROM payment
-GROUP BY customer_id
-ORDER BY total ASC;
+-- 3.) How many films are in each category in the dataset?
+SELECT c.name AS category_name, COUNT(f.film_id) AS film_count
+FROM category c
+JOIN film_category fc ON c.category_id = fc.category_id
+JOIN film f ON fc.film_id = f.film_id
+GROUP BY c.name;
 
--- 5.) Which actor was in the most movies in 2006 (based on this dataset)? 
--- Be sure to alias the actor name and count as a more descriptive name.
--- (Order results from most to least):
-EXPLAIN ANALYZE SELECT actor.actor_id, actor.first_name, actor.last_name, COUNT(DISTINCT film.film_id) AS movies_in_2006 FROM actor
-JOIN film_actor ON actor.actor_id = film_actor.actor_id
-JOIN film ON film_actor.film_id = film.film_id
-JOIN inventory ON film.film_id = inventory.film_id
-JOIN rental ON inventory.inventory_id = rental.inventory_id
-WHERE rental.rental_date BETWEEN '2006-01-01' AND '2006-12-31'
-GROUP BY actor.actor_id, actor.first_name, actor.last_name
-ORDER BY movies_in_2006 DESC;
+-- 4.) Why is there a table for category and a table for film category?
+-- For the sake of explanation, I'll be synonymizing "category" with "genre": mostly for my own sake.
+-- Essentially, any single film can have multiple genres (ex; Top Gun could be describes as both "action"
+-- and "drama"). If you eliminated the film_category table, this would be disallowed, and films would have
+-- to appear multiple times in the film table, once for each of their genres: that'd be a mess. Instead, the
+-- film_category table acts as an intermediary—a place where such duplicates CAN exist—so films can be counted,
+-- using their respective IDs, multiple times, across multiple genres.
 
+-- 5.) Show the film_id, title, and length for the movies that were returned from May 15 to 31, 2005:
+SELECT f.film_id, f.title, f.length
+FROM film f
+JOIN inventory i ON f.film_id = i.film_id
+JOIN rental r ON i.inventory_id = r.inventory_id
+WHERE r.return_date BETWEEN '2005-05-15' AND '2005-05-31';
 
--- 6.) Write an explain plan for 4 and 5. Show the queries and explain what is happening in each one.
--- After performing EXPLAIN ANALYZE QUERIES on each problem 4 and 5, I was returned:
--- (For 4): Sort (cost=362.06..363.56 rows=599 width = 34) (actual time=3.291..3.304 rows=599 loops=1)
--- Meaning SQL predicted the program to take 362.06ms before it produced an output, with a max of 363.56ms, over 599 rows.
--- In reality, the program took 3.291ms, with a max of 3.304ms, over the anticipated 599 rows.
+-- 6.) Write a subquery or join statement to show which movies are rented below the average price for all movies:
+SELECT f.film_id, f.title, f.rental_rate
+FROM film f
+WHERE f.rental_rate < (
+    SELECT AVG(rental_rate)
+    FROM film
+);
 
--- (For 5): Sort (cost=403.20..403.70 rows=200 width=25) (actual time=1.422..1.428 rows=198 loops=1)
--- In the same form as above, sql expected an output time (startup cost) of 403.20ms, max of 403.70ms, over 200 rows returned.
--- In reality, we exceeded expectations again, producing an output in 1.422ms with a max of 1.428ms, over 198—rather than 200—rows.
+-- 7.) How many films were returned late? Early? On time?
+EXPLAIN ANALYZE
+SELECT status,
+COUNT(*) AS total
+FROM rental
+GROUP BY status; 
 
--- 7.) What is the average rental rate per genre?
-SELECT category.name AS genre, AVG(film.rental_rate) AS avg_rentrate FROM category
-JOIN film_category ON category.category_id = film_category.category_id
-JOIN film ON film_category.film_id = film.film_id
-GROUP BY category.name;
-	
--- 8.) What categories are the most rented and what are their total sales? Show the top 5 most rented categories.
-WITH TopCats AS (SELECT category.category_id, COUNT(*) as rentals_count FROM category
-JOIN film_category ON category.category_id = film_category.category_id
-JOIN film ON film_category.film_id = film.film_id
-JOIN inventory ON film.film_id = inventory.film_id
-JOIN rental ON inventory.inventory_id = rental.inventory_id
-GROUP BY category.category_id
-ORDER BY rentals_count DESC 
-LIMIT 5)
+-- 8.) With a window function, write a query that shows the film, its duration, and what percentile the duration fits into:
+EXPLAIN ANALYZE
+SELECT title, length, PERCENT_RANK() OVER (
+	ORDER BY length) 
+	AS percentile
+FROM film;
 
-SELECT category.name AS category, SUM(payment.amount) AS total_rental_sales FROM category
-JOIN film_category ON category.category_id = film_category.category_id
-JOIN film ON film_category.film_id = film.film_id
-JOIN inventory ON film.film_id = inventory.film_id
-JOIN rental ON inventory.inventory_id = rental.inventory_id
-JOIN payment ON rental.rental_id = payment.rental_id
-JOIN TopCats ON category.category_id = TopCats.category_id
-GROUP BY category.name;
+-- 9.) Perform an explain plan on two different queries from above, and describe what you’re seeing and important ways they differ:
+-- a.] After performing an EXPLAIN ANALYZE query on problem 7, SQL returned:
+-- (cost=785.66..785.68 rows=2 width=14) (actual time=24.581..24.583 rows=2 loops=1)
+-- Meaning SQL predicted the program to produce the output in 785.66ms (with a max of 785.68ms), over 2 rows.
+-- In reality, the program took 24.581ms (with a max of 24.583ms), over just 2 rows.
+
+-- b.] After performing an EXPLAIN ANALYZE query on problem 8, SQL returned:
+-- (cost=147.83..165.33 rows=1000 width=25) (actual time=4.141..4.522 rows=1000 loops=1)
+-- Meaning SQL predicted the program to produce the output in 147.83ms (with a max of 165.33ms), over 1000 rows.
+-- In reality, the program took 4.141ms (with a max of 4.522ms), over the anticipated 1000 rows.
+
+-- Perhaps the most notable difference between these two explain plans are their costs, including a predicted and far more
+-- resource-intensive ~785.66ms to output the former, despite its more efficient actual result, to the latter's ~147.83 and
+-- 4.141, respectively. This can be explained, in large part, due to the nature of each functions being analyzed. In problem
+-- 7, we involve a more new and more complex—case statement-addled—column, as contrasted with the simpler percentile ranking
+-- iterated over, in problem 8.
+
+-- 10.) Find the relationship that is wrong in the data model. Explain why it’s wrong.
+-- I have no idea, but I'll take your word for it.
+
+-- 11.) In under 100 words, explain what the difference is between set-based and procedural programming.
+-- Be sure to specify which sql and python are:
+-- Set-based programming—SQL—is a matter of telling a computer "what" to do (eg; SELECT _ FROM _ GROUP BY _) on the WHOLE dataset,
+-- without describing HOW to do so. Procedural programming—Python—is far more explicit, you are describing "what" to do AND "how" to
+-- do it—you are guiding your program, row by row, to iterate over data, not all at once. In retrospect, the titles of both types of
+-- programming are pretty self-explanatory!
