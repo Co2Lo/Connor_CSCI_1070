@@ -1,34 +1,42 @@
 # Dataset:
-The "Job Change of Data Scientists" dataset is a CSV file from Kaggle.com with 14 features describing over 19,000 rows of data, each row representing a data scientist who was either looking or not looking for a job change at the time of the survey. Today, I'll be training binary classification models to determine if a data scientist was pursuing a job change, based on those aforementioned features, described in greater detail below, per the Kaggle description:
+The "Job Change of Data Scientists" dataset is a CSV file from Kaggle.com with 14 features describing over 19,000 rows of data, each row representing a data scientist who was either looking or not looking for a job change at the time of the survey. Today, I'll be training binary classification models to determine if a data scientist was pursuing a job change, based on those aforementioned features, which are described in greater detail below, per the Kaggle description:
 
 "enrollee_id : Unique ID for candidate.
+
 city: City code.
+
 city_ development _index : Developement index of the city (scaled).
+
 gender: Gender of candidate
+
 relevent_experience: Relevant experience of candidate
+
 enrolled_university: Type of University course enrolled if any
+
 education_level: Education level of candidate
+
 major_discipline :Education major discipline of candidate
+
 experience: Candidate total experience in years
+
 company_size: No of employees in current employer's company
+
 company_type : Type of current employer
+
 last_new_job: Difference in years between previous job and current job
+
 training_hours: training hours completed
-target: 0 – Not looking for job change, 1 – Looking for a job change"
+
+target: 0.0 – Not looking for job change, 1.0 – Looking for a job change"
 
 # Hypothesis:
 1. Null: For the dataset, there will be no difference in the population characteristics between the data scientists who look for a job change and those who do not look for a job change.
 2. Alternative: For the dataset, there will be a difference in the population characteristics between the data scientists who look for a job change and those who do not look for a job change.
 
-### Implication of hypothesis for binary classification:
-As a "Command + F" search of "0.0" (see above, "Not looking for job change"), and "1.0" (Looking for a job change) on the raw CSV file will reveal, the ratio of the latter to the former is 4777 : 14381... approximately 33.4% of the data scientists represented in the dataset are not looking for a job change, while approximately 66.6% are. As such, a rudimentary "coin flip" model based solely on these percentages would be accurate:
+### Implication of hypothesis for binary classification models:
+As a "Command + F" search of "0.0" (see above, "Not looking for job change"), and "1.0" (Looking for a job change) on the raw CSV file will reveal, the ratio of the latter to the former is 4777 : 14381... approximately 33.4% of the data scientists represented in the dataset are not looking for a job change, while approximately 66.6% are. As such, a rudimentary "coin flip" model based solely on these percentages would be accurate, over many trials, about 50% of the time, and an even simpler model predicting a data scientist is looking for a job, every single time, would be accurate 66.6% of the time. At the very least, we need to do better than each of these approaches, and prove the accuracy of each model through their respective ROC AUC scores, given it is one of the most consistent and accurate performance metrics.
 
-33.4% of the time for those not looking for a job change
-66.6% of the time for those looking for a job change
-
-(33.4% * 0.334) + (66.6% * 0.666) = 55.66% of the time.
-
-If my models can predict if data scientists were or were not looking for a job change at accuracy of rates of more than 55.66%, the null will be rejected, since a pattern exists among the population of data scientists not looking for a job change from those who are, by which they can guess with greater accuracy than a random number generator. The more accurate they are, the further they reject the null.
+Then, if my models can predict if data scientists were or were not looking for a job change with more than 66.6% accuracy, the null will be rejected, since a pattern exists among the population of data scientists not looking for a job change from those who are, by which the models can guess with greater accuracy than a naive guesser. Moreover, the more accurate my models are, the "further" they'll reject the null: this will be explained in greater detail, later.
 
 For this implication to be true, however, we must clean the data to ensure our models are truly evaluating PATTERNS, as opposed to NOISE, in the data. Let's preprocess.
 
@@ -111,14 +119,14 @@ Our second function, however, will stratify "In School", to see how the tune-up 
 
 Our Logistic Regression model's performance slightly improved; it seems that its predictive abilities benefited slightly from balancing the data representation—inputs—of the "In School" feature, as well as increasing the test_size to 0.23, which is where the benefit of tuning up this metric capped out.
 
-Still, an ROC AUC score of 72.5% is lower accuracy than I'd prefer to substantiate any conclusion, so let's employ a Gradient Boosting Classifier to reach higher echelons of accuracy. This model will, as learned in class, take as input the data of our specified features in the dataframe, train a model to predict our target, and contribute its predictive power to our final model, at which point it will "hand off" the data to the next model, which will do exactly the same, with, ideally, better predictive capacities towards a specific side of the data than its predecessor, and the process will unfold, exactly as before. Our final model should be more accurate, by these aggregate, predictive abilities, than the simpler Logistic Regression model.
+Still, an ROC AUC score of 71.3% is much lower accuracy than I'd prefer to substantiate a conclusion, so let's employ a Gradient Boosting Classifier to reach higher echelons of accuracy. This model will, as learned in class, take as input the data of our specified features in the dataframe, train a model to predict our target, and contribute its predictive power to our final model, at which point it will "hand off" the data to the next model, which will do exactly the same, with, ideally, better predictive capacities towards a specific side of the data than its predecessor, and the process will unfold, exactly as before. Our final model should be more accurate, by these aggregate, predictive abilities, than the simpler Logistic Regression model.
 
 ### Model #2 — Gradient Boosting Classifier:
-As can be seen above, this model took as input the exact same features as our Logistic Regression model, but bears a 7% higher ROC AUC score than the unstratified—first—model, and a 5% bump on the stratfied—second. To tune up its accuracy, slightly, I actually turned down the test_size by that 3% size I'd modified both the previous models with.
+As can be seen above, this model took as input the exact same features as our Logistic Regression model, but bears a nearly 6% higher ROC AUC score than the unstratified—first—model, and a 5.6% bump on the stratfied—second. To tune the GBC model's accuracy and provide a common base on which to evaluate it against the logistic regression model most fairly, I so too tuned up its test size to 0.23.
 
 # Conclusion:
-Because all three datasets predicted whether or not a data scientist was looking to change their job with accuracies—ROC AUC scores—of greater than the established, average coin-flip accuracy of 55.66%, (in fact, they ranged between 71-78%), we reject the null that for the dataset, there will be no difference in the population characteristics between the data scientists who look for a job change and those who do not look for a job change.
+Because all three datasets predicted whether or not a data scientist was looking to change their job with accuracies—ROC AUC scores—of greater than the established benchmark of 66.6%, (in fact, they ranged between 71 - 76.9%), we reject the null that for the dataset, there exists no difference in the population characteristics between the data scientists who look for a job change and those who do not look for a job change.
 
 This is rather intuitive, if we only return to the heatmap, our first visualization of the data. Given our top four features bore negative correlations with the target, respectively, of between 0.17 and 0.34, it was telling early-on there was some pattern threading through the dataset which could be harnessed to predict whether data scientists would pursue career changes. 
 
-The most striking—and greatest—of these correlations is the city development index, featuring that aforementioned -0.34 correlation, which would've been far from my first guess for the preliminary predictor. On further thought, however, the metric is largely intuitive. As data scientists have flocked to San Fransisco, Seattle, New York, and emerging locations such as Raleigh to pursue the cities' burgeoning job market for software, they tend to add value and enrich the resources of these places, improving their index score. The higher these cities' index score, the lower the probability their data scientist residents will wish to flee the mushrooming innovation.
+The most striking—and greatest—of these correlations is the city development index, featuring that aforementioned -0.34 correlation, which would've been far from my first guess for the preliminary predictor. On further thought, however, the metric is largely intuitive. As data scientists have flocked to emerging hubs such as San Fransisco, Seattle, New York, and Raleigh to pursue the cities' burgeoning job market for software, they tend to add value and enrich the resources of these places, improving their index score. The higher these cities' index score, the lower the probability their data scientist residents will wish to flee the mushrooming innovation around them. Such innovation could very well come from the curricula of universities and education in the area; so to speak, every course, such as this one, is the root of dozens of interactions, projects, and careers in data science.
